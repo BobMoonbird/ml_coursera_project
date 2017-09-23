@@ -1,0 +1,128 @@
+---
+title: "Applied ML Project"
+author: "Boris Borodyansky"
+date: '23 сент€бр€ 2017 г '
+output: html_document
+---
+
+## Intro and Sinopsis
+
+This paper deals with creating machine learnign algorythm, that should predict how certain people perform physycal exercices based on how they performed them earlier. 
+
+We will use caret and random forest package and a dataset provided by Coursera. 
+
+```{r setup and libraries, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# load the libraries
+library(caret)
+library(randomForest)
+
+# data set download
+data_set = read.csv('./pml-training.csv', na.strings = c(""," ", "NA", "#DIV/0!"))
+
+```
+
+## About the data set and summaries
+So, let's perform some xploratory analyses before we move forward. 
+What we are interested in are:
+- NAs
+- How variables are structrured all in all
+
+Here is some data on amount of NAs in different columns of the data set. 
+
+```{r dataset intro}
+nas = c()
+for(i in 1:length(names(data_set)))
+  nas = c(nas, length(which(is.na(data_set[,i])==TRUE)))
+
+table(nas)
+plot(nas)
+
+```
+
+We can see, that there are variables that have no NAs, and those that do now have almost any meaningful values. So we cannot substitute those meaningsless variables, and have to get rid of them.
+
+Thus we create a new data set with all meaningful columns. 
+
+```{r get rid of NAs}
+
+# get rid of NAs
+no_na = c()         
+for(i in 1:length(names(data_set))){
+  if(length(data_set[is.na(data_set[,i]),i])>(length(data_set$X)*0.60))
+    no_na = c(no_na,FALSE)
+  else
+    no_na = c(no_na, TRUE)
+}
+
+data_set = data_set[,no_na]
+```
+
+
+## More exploratory analyses
+
+Let's see if the data that's left has any graphically noticable pattern. 
+
+```{r some minor exploratory plots}
+plot(data_set$num_window,data_set$total_accel_arm, col = factor(data_set$classe))
+```
+
+It seems, that linear regression or other simple tecthiques won't be able to train and predict a model based on this data. So we'd rather stick to more complex models, like random forest.
+
+
+# Let's have a look at the variables that's left.
+
+```{r variable choice}
+# exploratory analysis of variables
+sort(names(data_set))
+```
+
+It seems, that not all variables form "complete" sets of snsors (like, pitch for arm, forearm, belt and dumbbel).
+Forthe model I consider choosinf those that have complete sets, and those thar do not deal with other aspects (time, name, id and so on)
+
+## Process data for ML model
+Now we are going to create data partitions and choose column for model.
+I decided to choose 32 columns with full sets of sensors and no total.
+We will also use control method of reputation. 
+
+```{r ML model}
+# preparing for analysys
+
+inTrain = createDataPartition(y=data_set$classe, p=0.6, list = FALSE)
+training = data_set[inTrain,]
+testing = data_set[-inTrain,]
+
+# building up prediction model
+ctrl = trainControl(method = "repeatedvc", number = 10, repeats = 3)
+set.seed(7)
+
+TrainD = training[,c(8:10,11:20,25:33,50:59)]
+TrainC = training[,60]
+```
+
+## Model training and prediction
+
+Here we use random forest method for our model.
+We also predict it on the test set we created earlier. 
+
+```{r training and predicting}
+model33 = train(TrainD, TrainC,method = "rf")
+pred = predict(model33, testing)
+
+```
+
+Let's check prediction model.
+
+```{r check prediction model}
+# check the prediction model
+check_pred = c()
+for(i in 1:length(pred))
+  check_pred = c(check_pred,testing$classe[i] == pred[i])
+
+summary(check_pred)
+```
+
+It seems our model is trained alright.
+
+Hope it works alright on the Test Quiz Also =)
